@@ -1,0 +1,140 @@
+:toc:
+:sectnums:
+:toclevels: 5
+:sectnumlevels: 5
+:showcomments:
+:xrefstyle: short
+:icons: font
+:source-highlighter: coderay
+:tick: &#x2714;
+:pound: &#xA3;
+
+= WPF Basic Terminology
+
+We suggest reading through all of the terms below to make sure you have a basic understanding of them.
+
+Always on top:: An app can achieve "always on top" status (i.e. it's main window is on top of all other windows) by setting the `TopMost` `boolean` property
+to true. This property can also be bound to a CLR property in the view model. A typical view model would be as follows:
++
+[source,c#]
+----
+public class ViewModel : INotifyPropertyChanged
+{
+    private bool _onTop;
+
+    public bool OnTop
+    {
+        get => _onTop;
+        set
+        {
+            _onTop = value;
+            NotifyPropertyChanged();
+        }
+    }
+
+    private void NotifyPropertyChanged([CallerMemberName] string property = null)
+    {
+        if (!string.IsNullOrEmpty(property))
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
+        }
+    }
+
+    public event PropertyChangedEventHandler PropertyChanged;
+}
+----
++
+The main window would then bind to the view model as follows:
++
+[source,xml]
+----
+<Window x:Class="OnTop2.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:OnTop2"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="350" Width="525"
+        Topmost="{Binding OnTop, UpdateSourceTrigger=PropertyChanged}"
+        >
+<Window.DataContext>
+    <local:ViewModel/>
+</Window.DataContext>
+    <Grid>
+        <CheckBox Content="Always on top" IsChecked="{Binding OnTop}"/>
+    </Grid>
+</Window>
+----
+
+app.xaml:: A XAML file with root element `Application`. It specifies the `StartupUri` - for example:
++
+[source,xml]
+----
+<Application x:Class="WPath.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:WPath"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+    </Application.Resources>
+</Application>
+----
+
+Resource Dictionary:: A XAML file containing static or dynamic resources. For example, it is possible to draw images in XAML using similar primitives to those
+in SVG. An item in a resource dictionary must have the `x:Key` attribute which defines a key which can be referenced in other XAML files.
+
+
+Default Control Template:: 
+
+Single Instance Application:: A single instance application can be achieved by attempting to create a named `Mutex` on application startup. We do 
+this by overriding `OnStartup` in our application class. For example, we can place the following code in `app.xaml.cs`:
++
+[source,c#]
+----
+public partial class App : Application
+{
+    private static Mutex _mutex = null;
+    private EventWaitHandle _eventWaitHandle;
+
+
+    protected override void OnStartup(StartupEventArgs e)
+    {
+        const string mutexName = "WPATH-057F193A-314E-4EC5-BB37-63D2E68774F7";
+        const string eventName = "WPATH-3089C432-35E5-4371-AE4B-BB02EE1D2AA0";
+
+        _eventWaitHandle = new EventWaitHandle(false, EventResetMode.AutoReset, eventName);
+        _mutex = new Mutex(true, mutexName, out bool createdNew);
+
+        if (createdNew)
+        {
+            Action doBringToForeGround = () => 
+                ((MainWindow)Current.MainWindow).BringToForeground();
+                
+            var thread = new Thread(
+                () =>
+                {
+                    while (_eventWaitHandle.WaitOne())
+                    {
+                        Current.Dispatcher.BeginInvoke(doBringToForeGround);
+                    }
+                });
+
+            // It is important to mark the thread as background otherwise it will prevent
+            // the app from exiting:
+            thread.IsBackground = true;
+            thread.Start();
+            return;
+        }
+
+        // Notify the first instance so it can bring itself to the front:
+        _eventWaitHandle.Set();
+
+        // Terminate this instance:
+        Shutdown();
+    }
+}
+----
+
+
+
