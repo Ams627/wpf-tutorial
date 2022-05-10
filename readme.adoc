@@ -33,7 +33,7 @@ public class ViewModel : INotifyPropertyChanged
     }
 
     private void NotifyPropertyChanged([CallerMemberName] string property = null)
-    {
+    {``````````````````````````````````````````````
         if (!string.IsNullOrEmpty(property))
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
@@ -81,13 +81,30 @@ app.xaml:: A XAML file with root element `Application`. It specifies the `Startu
 </Application>
 ----
 
+INotifyPropertyChanged:: A view model should implement this interface.
+
 Resource Dictionary:: A XAML file containing static or dynamic resources. For example, it is possible to draw images in XAML using similar primitives to those
 in SVG. An item in a resource dictionary must have the `x:Key` attribute which defines a key which can be referenced in other XAML files.
+
+ViewModel:: The CLR (i.e. in most cases C#) class where all the code that responds to the user interface or is presented to the user interface resides.
+The view model can be set in the main window's XAML file using the following XML:
++
+----
+<Window.DataContext>
+    <local:ViewModel/>
+</Window.DataContext>
+----
++
+where the `local` namespace is defined as an attribute in the root `Window` element of the XAML file (e.g. `MainWindow.xaml`) as 
+`xmlns:local="clr-namespace:WPath"`
++
+This creates a single instance of a C# class named `ViewModel`. The properties of the main window and any controls defined within it
+can then be bound to the public properties of the C# class so that when the C# property is updated, the screen is updated automatically.
 
 
 Default Control Template:: 
 
-Single Instance Application:: A single instance application can be achieved by attempting to create a named `Mutex` on application startup. We do 
+Single Instance Application:: A single instance WPF application can be achieved by attempting to create a named `Mutex` on application startup. We do 
 this by overriding `OnStartup` in our application class. For example, we can place the following code in `app.xaml.cs`:
 +
 [source,c#]
@@ -135,6 +152,9 @@ public partial class App : Application
     }
 }
 ----
-
-
++
+All subsequent instances of the app start and cannot create the mutex. They signal the first instance which then comes to the foreground.
++
+We use a thread which basically does nothing except to wait for an auto-reset event. When it recieves the event, it brings the main Window
+to the foreground.
 
